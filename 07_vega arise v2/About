@@ -1,0 +1,57 @@
+# VEGA ARIES v2.0
+
+## Overview
+
+VEGA ARIES v2.0 is a RISC-V based development board developed by C-DAC. It is based on the THEJAS32 SoC and is designed for embedded systems and IoT applications.
+
+In this project, the VEGA ARIES v2.0 can be used as an embedded controller for interfacing sensors and other peripherals of the firefighter safety system.
+
+## Key Specifications
+
+| Feature | Specification |
+|---|---|
+| Processor | VEGA ET1031 |
+| SoC | THEJAS32 |
+| Architecture | RISC-V |
+| Clock Speed | 100 MHz |
+| SRAM | 256 KB |
+| Flash | 2 MB |
+| UART | 3 |
+| SPI | 4 |
+| I2C | 3 |
+| PWM | 8 |
+| GPIO | 32 |
+| I/O Voltage | 3.3 V |
+| Input Voltage | 7–12 V |
+
+## Role in the Project
+
+The VEGA ARIES v2.0 provides an embedded platform for:
+
+- Sensor interfacing
+- UART communication
+- SPI-based peripherals
+- TFT/display interfacing
+- Audio/alert control
+- Real-time embedded control
+
+## Why VEGA ARIES v2.0?
+
+The board provides multiple communication interfaces and GPIOs in a compact embedded platform, making it suitable for wearable, sensor-fusion and IoT applications.
+
+## Development
+
+The board can be programmed using the Arduino IDE with the VEGA ARIES board support package. The official setup supports selecting:
+
+`Tools → Board → VEGA Processor: ARIES Boards → ARIES v2`
+
+## Project Integration
+
+```text
+Sensors / Radar
+       ↓
+VEGA ARIES v2.0
+       ↓
+Processing & Control
+       ↓
+Display / Audio / Communication

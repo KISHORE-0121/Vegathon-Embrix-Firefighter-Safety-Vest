@@ -1,0 +1,47 @@
+# IWR6843AOP mmWave Radar
+
+The **IWR6843AOP** is a 60 GHz mmWave radar sensor used in the Smart Firefighter Safety Vest for detecting and tracking people in the surrounding environment.
+
+## Role in the Project
+
+The radar provides:
+
+- Human detection
+- Number of humans detected
+- Distance to detected humans
+- Nearest human distance
+- Real-time object tracking
+- Detection in low-visibility environments
+
+This is especially useful for firefighters because the radar can detect people even when visibility is affected by smoke or darkness.
+
+## Radar Used
+
+| Parameter | Details |
+|---|---|
+| Radar | IWR6843AOP |
+| Technology | 60 GHz mmWave Radar |
+| Frequency | 60–64 GHz |
+| Application | Human/Object Detection |
+| Interface | UART |
+| Detection | Range, angle and velocity |
+| Processing | On-board radar processing |
+
+## System Integration
+
+```text
+        IWR6843AOP
+             │
+             │ UART
+             ▼
+       VEGA ARIES v2
+             │
+       ┌─────┴─────┐
+       │           │
+       ▼           ▼
+   TFT Display   Audio Alert
+       │
+       ▼
+  Human Detection
+  Human Count
+  Nearest Distance
