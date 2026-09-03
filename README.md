@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 🔥 Smart Firefighter Safety Vest
 
 An intelligent wearable safety system designed to improve firefighter safety and situational awareness.
@@ -26,4 +26,4 @@ The system detects nearby humans, measures the nearest person's distance, monito
 =======
 # Smart-Firefighter-Safety-Vest
 An intelligent firefighter safety vest for real-time human detection, distance monitoring, environmental alerts, voice assistance, and wireless communication.
->>>>>>> e53b9e6960a15228306db23d976bd27b4de60325
+
