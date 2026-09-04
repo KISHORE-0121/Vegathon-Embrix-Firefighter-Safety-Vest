@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🔥 Smart Firefighter Safety Vest
 
 ### Vegathon Embrix Hackathon
@@ -76,3 +77,34 @@ GPS tracking • Fall detection • Heart-rate monitoring • Automatic SOS • 
 **Domain:** Embedded Systems • IoT • Wearable Safety
 
 > ⚠️ Prototype for educational, research, and hackathon purposes.
+=======
+
+🔥 Smart Firefighter Safety Vest
+
+An intelligent wearable safety system designed to improve firefighter safety and situational awareness.
+
+🚨 Problem Statement
+
+Firefighters work in dangerous environments with high temperature, poor air quality, limited visibility, and unpredictable conditions. During rescue operations, locating nearby people and monitoring hazardous conditions can be difficult.
+
+💡 Proposed Solution
+
+We developed a Smart Firefighter Safety Vest that combines mmWave radar, environmental sensors, Raspberry Pi, Arduino Mega, TFT display, audio alerts, and Bluetooth communication.
+
+The system detects nearby humans, measures the nearest person's distance, monitors environmental conditions, and provides immediate alerts.
+
+✨ Key Features
+👤 Human detection
+👥 Human counting
+📏 Nearest human distance measurement
+🌡️ Temperature warning
+🌫️ Air-quality warning
+🔊 Voice alerts
+🖥️ TFT display
+📱 Bluetooth communication
+🦺 Wearable safety system
+=======
+# Smart-Firefighter-Safety-Vest
+An intelligent firefighter safety vest for real-time human detection, distance monitoring, environmental alerts, voice assistance, and wireless communication.
+
+>>>>>>> dbb777cf791beff01c64936b1710c90cb0afa4f7

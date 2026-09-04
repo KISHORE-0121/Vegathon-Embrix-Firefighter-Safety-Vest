@@ -1,0 +1,944 @@
+import serial
+import time
+import os
+import struct
+import math
+
+
+# ============================================================
+# PORT SETTINGS
+# ============================================================
+
+CLI_PORT = "COM6"
+DATA_PORT = "COM5"
+
+ARDUINO_PORT = "COM15"
+
+CLI_BAUD = 115200
+DATA_BAUD = 921600
+ARDUINO_BAUD = 115200
+
+
+# ============================================================
+# CONFIG FILE
+# ============================================================
+
+CONFIG_FILE = r"C:\Users\KISHORE\OneDrive\Desktop\AOP_6m_default.cfg"
+
+
+# ============================================================
+# DETECTION SETTINGS
+# ============================================================
+
+DETECTION_TIME = 1.0
+
+UPDATE_INTERVAL = 5.0
+
+MAX_HUMANS = 5
+
+
+# ============================================================
+# IWR6843AOP MAGIC WORD
+# ============================================================
+
+MAGIC_WORD = bytes([
+    0x02, 0x01, 0x04, 0x03,
+    0x06, 0x05, 0x08, 0x07
+])
+
+
+# ============================================================
+# IMPORTANT:
+# YOUR IWR6843AOP PEOPLE TRACKING TLV
+# ============================================================
+
+TARGET_LIST_TLV = 1010
+
+TARGET_SIZE = 112
+
+
+# ============================================================
+# RADAR AREA
+# ============================================================
+
+MIN_X = -5.0
+MAX_X = 5.0
+
+MIN_Y = 0.1
+MAX_Y = 10.0
+
+MIN_Z = -2.0
+MAX_Z = 3.0
+
+
+# ============================================================
+# SERIAL OBJECTS
+# ============================================================
+
+cli_port = None
+data_port = None
+arduino_port = None
+
+
+# ============================================================
+# TARGET STORAGE
+# ============================================================
+
+targets_found = {}
+
+
+# ============================================================
+# OPEN PORTS
+# ============================================================
+
+def open_ports():
+
+    global cli_port
+    global data_port
+    global arduino_port
+
+    print("OPENING PORTS...")
+
+
+    cli_port = serial.Serial(
+        CLI_PORT,
+        CLI_BAUD,
+        timeout=1
+    )
+
+
+    data_port = serial.Serial(
+        DATA_PORT,
+        DATA_BAUD,
+        timeout=0.05
+    )
+
+
+    arduino_port = serial.Serial(
+        ARDUINO_PORT,
+        ARDUINO_BAUD,
+        timeout=0.1
+    )
+
+
+    # Arduino resets when USB opens
+
+    time.sleep(3)
+
+
+    print("CLI PORT     :", CLI_PORT)
+    print("DATA PORT    :", DATA_PORT)
+    print("ARDUINO PORT :", ARDUINO_PORT)
+
+    print("PORTS READY")
+
+
+# ============================================================
+# SEND CONFIG
+# ============================================================
+
+def send_config():
+
+    if not os.path.exists(CONFIG_FILE):
+
+        print("CONFIG FILE NOT FOUND:")
+        print(CONFIG_FILE)
+
+        return False
+
+
+    print()
+    print("SENDING CONFIGURATION...")
+
+
+    with open(
+        CONFIG_FILE,
+        "r",
+        encoding="utf-8"
+    ) as file:
+
+        for raw_line in file:
+
+            line = raw_line.strip()
+
+
+            if not line:
+                continue
+
+
+            if line.startswith("%"):
+                continue
+
+
+            print("CFG:", line)
+
+
+            cli_port.write(
+                (line + "\r\n").encode()
+            )
+
+
+            cli_port.flush()
+
+
+            time.sleep(0.05)
+
+
+    time.sleep(2)
+
+
+    print("CONFIGURATION SENT")
+
+    return True
+
+
+# ============================================================
+# SEND TO ARDUINO
+# ============================================================
+
+def send_to_arduino(
+    count,
+    distance
+):
+
+    if count > 0:
+
+        message = (
+            f"H,{count},{distance:.2f}\n"
+        )
+
+    else:
+
+        message = "N,0,0\n"
+
+
+    try:
+
+        arduino_port.write(
+            message.encode()
+        )
+
+        arduino_port.flush()
+
+
+        print(
+            "SENT TO ARDUINO:",
+            message.strip()
+        )
+
+
+    except Exception as error:
+
+        print(
+            "ARDUINO SEND ERROR:",
+            error
+        )
+
+
+# ============================================================
+# CHECK RADAR AREA
+# ============================================================
+
+def inside_area(
+    x,
+    y,
+    z
+):
+
+    if x < MIN_X or x > MAX_X:
+        return False
+
+    if y < MIN_Y or y > MAX_Y:
+        return False
+
+    if z < MIN_Z or z > MAX_Z:
+        return False
+
+
+    return True
+
+
+# ============================================================
+# DECODE TARGET LIST
+# ============================================================
+
+def decode_targets(
+    payload
+):
+
+    global targets_found
+
+
+    if len(payload) < TARGET_SIZE:
+
+        return
+
+
+    number_of_targets = (
+        len(payload)
+        //
+        TARGET_SIZE
+    )
+
+
+    print()
+    print("TARGET LIST FOUND")
+    print(
+        "TARGETS IN FRAME:",
+        number_of_targets
+    )
+
+
+    for i in range(
+        number_of_targets
+    ):
+
+        offset = (
+            i
+            *
+            TARGET_SIZE
+        )
+
+
+        try:
+
+            # Target ID
+
+            target_id = (
+                struct.unpack_from(
+                    "<I",
+                    payload,
+                    offset
+                )[0]
+            )
+
+
+            # Position
+
+            x = (
+                struct.unpack_from(
+                    "<f",
+                    payload,
+                    offset + 4
+                )[0]
+            )
+
+
+            y = (
+                struct.unpack_from(
+                    "<f",
+                    payload,
+                    offset + 8
+                )[0]
+            )
+
+
+            z = (
+                struct.unpack_from(
+                    "<f",
+                    payload,
+                    offset + 12
+                )[0]
+            )
+
+
+            # Check valid values
+
+            if not math.isfinite(x):
+                continue
+
+            if not math.isfinite(y):
+                continue
+
+            if not math.isfinite(z):
+                continue
+
+
+            # Check area
+
+            if not inside_area(
+                x,
+                y,
+                z
+            ):
+
+                continue
+
+
+            # Calculate distance
+
+            distance = math.sqrt(
+
+                x * x
+                +
+                y * y
+                +
+                z * z
+
+            )
+
+
+            if distance < 0.1:
+
+                continue
+
+
+            if distance > 15.0:
+
+                continue
+
+
+            # Store target
+
+            targets_found[
+                target_id
+            ] = {
+
+                "x": x,
+                "y": y,
+                "z": z,
+                "distance": distance
+
+            }
+
+
+            print(
+                "TRACK ID:",
+                target_id,
+
+                "X:",
+                round(x, 2),
+
+                "Y:",
+                round(y, 2),
+
+                "Z:",
+                round(z, 2),
+
+                "DIST:",
+                round(distance, 2),
+                "m"
+            )
+
+
+        except Exception as error:
+
+            print(
+                "TARGET PARSE ERROR:",
+                error
+            )
+
+
+# ============================================================
+# DECODE TLVs
+# ============================================================
+
+def decode_tlvs(
+    frame,
+    num_tlvs
+):
+
+    # Your radar frame parser uses
+    # a 40-byte frame header.
+
+    offset = 40
+
+
+    for _ in range(
+        num_tlvs
+    ):
+
+        if (
+            offset + 8
+            >
+            len(frame)
+        ):
+
+            break
+
+
+        try:
+
+            tlv_type = (
+                struct.unpack_from(
+                    "<I",
+                    frame,
+                    offset
+                )[0]
+            )
+
+
+            tlv_length = (
+                struct.unpack_from(
+                    "<I",
+                    frame,
+                    offset + 4
+                )[0]
+            )
+
+
+        except:
+
+            break
+
+
+        offset += 8
+
+
+        remaining = (
+            len(frame)
+            -
+            offset
+        )
+
+
+        # Handle both TLV length formats
+
+        if tlv_length <= remaining:
+
+            payload_length = tlv_length
+
+
+        elif (
+            tlv_length >= 8
+            and
+            tlv_length - 8 <= remaining
+        ):
+
+            payload_length = (
+                tlv_length - 8
+            )
+
+
+        else:
+
+            break
+
+
+        payload = frame[
+            offset:
+            offset + payload_length
+        ]
+
+
+        # Debug: show all TLV types
+
+        print(
+            "TLV TYPE:",
+            tlv_type,
+            "BYTES:",
+            payload_length
+        )
+
+
+        # HUMAN TARGET LIST
+
+        if (
+            tlv_type
+            ==
+            TARGET_LIST_TLV
+        ):
+
+            decode_targets(
+                payload
+            )
+
+
+        offset += payload_length
+
+
+# ============================================================
+# PROCESS RESULT
+# ============================================================
+
+def process_result():
+
+    global targets_found
+
+
+    print()
+    print("==============================")
+    print("PROCESSING DETECTION")
+    print("==============================")
+
+
+    human_count = len(
+        targets_found
+    )
+
+
+    if human_count == 0:
+
+        print("NO HUMAN DETECTED")
+
+        send_to_arduino(
+            0,
+            0.0
+        )
+
+        return
+
+
+    # Limit maximum count
+
+    human_count = min(
+        human_count,
+        MAX_HUMANS
+    )
+
+
+    # Find nearest human
+
+    distances = []
+
+
+    for target in targets_found.values():
+
+        distances.append(
+            target["distance"]
+        )
+
+
+    nearest_distance = min(
+        distances
+    )
+
+
+    print()
+    print("HUMAN DETECTED")
+
+    print(
+        "NUMBER OF HUMANS:",
+        human_count
+    )
+
+    print(
+        "NEAREST DISTANCE:",
+        f"{nearest_distance:.2f} m"
+    )
+
+
+    send_to_arduino(
+        human_count,
+        nearest_distance
+    )
+
+
+# ============================================================
+# MAIN PROGRAM
+# ============================================================
+
+def main():
+
+    global targets_found
+
+
+    try:
+
+        open_ports()
+
+
+        data_port.reset_input_buffer()
+
+
+        if not send_config():
+
+            return
+
+
+        print()
+        print("================================")
+        print("IWR6843AOP HUMAN DETECTION")
+        print("================================")
+
+
+        buffer = bytearray()
+
+
+        while True:
+
+
+            # Start new detection cycle
+
+            targets_found = {}
+
+
+            buffer.clear()
+
+
+            print()
+            print(
+                "DETECTING FOR",
+                DETECTION_TIME,
+                "SECOND..."
+            )
+
+
+            start_time = time.time()
+
+
+            # ===============================================
+            # DETECT FOR 1 SECOND
+            # ===============================================
+
+            while (
+
+                time.time()
+                -
+                start_time
+
+                <
+                DETECTION_TIME
+
+            ):
+
+
+                incoming = data_port.read(
+
+                    data_port.in_waiting
+
+                    or
+
+                    1
+
+                )
+
+
+                if incoming:
+
+                    buffer.extend(
+                        incoming
+                    )
+
+
+                # ===========================================
+                # EXTRACT COMPLETE FRAMES
+                # ===========================================
+
+                while True:
+
+
+                    position = buffer.find(
+                        MAGIC_WORD
+                    )
+
+
+                    if position < 0:
+
+                        if len(buffer) > 7:
+
+                            buffer = buffer[-7:]
+
+
+                        break
+
+
+                    # Remove unwanted bytes
+
+                    if position > 0:
+
+                        del buffer[
+                            :position
+                        ]
+
+
+                    # Need full header
+
+                    if len(buffer) < 40:
+
+                        break
+
+
+                    try:
+
+                        # Packet length
+
+                        packet_length = (
+
+                            struct.unpack_from(
+                                "<I",
+                                buffer,
+                                12
+                            )[0]
+
+                        )
+
+
+                        # Number of TLVs
+
+                        num_tlvs = (
+
+                            struct.unpack_from(
+                                "<I",
+                                buffer,
+                                32
+                            )[0]
+
+                        )
+
+
+                    except:
+
+                        break
+
+
+                    # Validate packet
+
+                    if (
+
+                        packet_length < 40
+
+                        or
+
+                        packet_length > 100000
+
+                    ):
+
+                        del buffer[:8]
+
+                        continue
+
+
+                    # Wait for full packet
+
+                    if (
+
+                        len(buffer)
+                        <
+                        packet_length
+
+                    ):
+
+                        break
+
+
+                    # Extract frame
+
+                    frame = bytes(
+
+                        buffer[
+                            :packet_length
+                        ]
+
+                    )
+
+
+                    del buffer[
+                        :packet_length
+                    ]
+
+
+                    # Decode
+
+                    decode_tlvs(
+
+                        frame,
+
+                        num_tlvs
+
+                    )
+
+
+            # ===============================================
+            # PROCESS HUMAN RESULT
+            # ===============================================
+
+            process_result()
+
+
+            # ===============================================
+            # 5 SECOND UPDATE INTERVAL
+            # ===============================================
+
+            print()
+            print(
+                "WAITING 5 SECONDS..."
+            )
+
+
+            wait_start = time.time()
+
+
+            while (
+
+                time.time()
+                -
+                wait_start
+
+                <
+                UPDATE_INTERVAL
+
+            ):
+
+                if data_port.in_waiting:
+
+                    data_port.read(
+                        data_port.in_waiting
+                    )
+
+
+                time.sleep(
+                    0.01
+                )
+
+
+    except KeyboardInterrupt:
+
+        print()
+        print("PROGRAM STOPPED")
+
+
+    except Exception as error:
+
+        print()
+        print(
+            "ERROR:",
+            error
+        )
+
+
+    finally:
+
+        try:
+
+            if cli_port is not None:
+
+                cli_port.close()
+
+        except:
+
+            pass
+
+
+        try:
+
+            if data_port is not None:
+
+                data_port.close()
+
+        except:
+
+            pass
+
+
+        try:
+
+            if arduino_port is not None:
+
+                arduino_port.close()
+
+        except:
+
+            pass
+
+
+        print("PORTS CLOSED.")
+
+
+# ============================================================
+# START
+# ============================================================
+
+if __name__ == "__main__":
+
+    main()
